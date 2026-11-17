@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>My Book Tracker</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 640px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        #error {
+            color: darkred;
+            min-height: 1.2em;
+        }
+
+        #loading {
+            color: #555;
+        }
+
+        li {
+            margin: 0.4rem 0;
+        }
+
+        button {
+            margin-left: 0.3rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>My Book Tracker</h1>
+
+    <div>
+        <button data-status="">All</button>
+        <button data-status="want to read">Want to read</button>
+        <button data-status="currently reading">Reading</button>
+        <button data-status="read">Read</button>
+    </div>
+
+    <p>
+        <input id="search" type="search" placeholder="Search by title or author" />
+        <button id="searchBtn">Search</button>
+    </p>
+
+    <p id="loading" hidden>Loading…</p>
+    <p id="error"></p>
+    <ul id="list"></ul>
+
+    <p>
+        <button id="prevBtn">← Previous</button>
+        <span id="pageInfo"></span>
+        <button id="nextBtn">Next →</button>
+    </p>
+
+    <h2>Add a book</h2>
+    <form id="addForm">
+        <input id="title" placeholder="Title" required />
+        <input id="author" placeholder="Author" required />
+        <select id="status">
+            <option value="want to read">want to read</option>
+            <option value="currently reading">currently reading</option>
+            <option value="read">read</option>
+        </select>
+        <button>Add</button>
+    </form>
+    <script>
+        const listEl = document.getElementById("list");
+        const errorEl = document.getElementById("error");
+        const loadingEl = document.getElementById("loading");
+        const pageInfoEl = document.getElementById("pageInfo");
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+
+        let status = "";
+        let q = "";
+        let page = 1;
+        const limit = 2;
+        let totalPages = 1;
+
+        function showError(message) {
+            errorEl.textContent = message;
+        }
+
+        async function loadBooks() {
+            showError("");
+            loadingEl.hidden = false;
+            listEl.innerHTML = "";
+            try {
+                const params = new URLSearchParams();
+                if (status) params.set("status", status);
+                if (q) params.set("q", q);
+                params.set("page", String(page));
+                params.set("limit", String(limit));
+                const res = await fetch("/books?" + params.toString());
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error("Error " + res.status + ": " + (data.error || "unknown error"));
+                }
+                const total = Number(res.headers.get("X-Total-Count"));
+                totalPages = Math.max(1, Math.ceil(total / limit));
+                const books = await res.json();
+                if (books.length === 0) {
+                    listEl.innerHTML = "<li>No books for display</li>";
+                    loadingEl.hidden = true;
+                    pageInfoEl.textContent = "Page " + page;
+                    prevBtn.disabled = true;
+                    nextBtn.disabled = true;
+                    return;
+                }
+                const statuses = ["read", "currently reading", "want to read"];
+
+                for (const book of books) {
+                    const li = document.createElement("li");
+                    li.textContent = `${book.title} — ${book.author} (${book.status}) `;
+
+                    const select = document.createElement("select");
+
+                    for (const status of statuses) {
+                        const option = document.createElement("option");
+                        option.value = status;
+                        option.textContent = status;
+
+                        // Pre-select the option that matches the book's current status
+                        if (book.status === status) {
+                            option.selected = true;
+                        }
+
+                        select.appendChild(option);
+                    }
+
+                    const btn = document.createElement("button");
+                    btn.textContent = "Update";
+                    // Pass both book.id and the currently chosen dropdown value
+                    btn.onclick = () => changeStatus(book.id, select.value);
+
+                    li.appendChild(select);
+                    li.appendChild(btn);
+                    listEl.appendChild(li);
+
+                }
+                pageInfoEl.textContent = "Page " + page + " of " + totalPages;
+                prevBtn.disabled = page <= 1;
+                nextBtn.disabled = page >= totalPages;
+            } catch (err) {
+                showError(err.message || "Network error: check if the server is running");
+            } finally {
+                loadingEl.hidden = true;
+            }
+        }
+
+        async function changeStatus(id, newStatus) {
+            try {
+                const res = await fetch("/books/" + id, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: newStatus }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error("Error " + res.status + ": " + (data.error || "unknown error"));
+                }
+                await loadBooks();
+            } catch (err) {
+                showError(err.message || "Network error: check if the server is running");
+            }
+        }
+
+        document.querySelectorAll("[data-status]").forEach((btn) => {
+            btn.onclick = () => {
+                status = btn.dataset.status;
+                page = 1;
+                loadBooks();
+            };
+        });
+
+        document.getElementById("searchBtn").onclick = () => {
+            q = document.getElementById("search").value.trim();
+            page = 1;
+            loadBooks();
+        };
+
+        prevBtn.onclick = () => {
+            if (page > 1) {
+                page -= 1;
+                loadBooks();
+            }
+        };
+
+        nextBtn.onclick = () => {
+            if (page < totalPages) {
+                page += 1;
+                loadBooks();
+            }
+        };
+    loadBooks();
+    document.getElementById("addForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            const res = await fetch("/books", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: document.getElementById("title").value.trim(),
+                    author: document.getElementById("author").value.trim(),
+                    status: document.getElementById("status").value,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error("Error " + res.status + ": " + (data.error || "unknown error"));
+            }
+            event.target.reset();
+            page = totalPages;
+            await loadBooks();
+        } catch (err) {
+            showError(err.message || "Network error: check if the server is running");
+        }
+    });
+    </script>

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "1",
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "status": "read"
+  },
+  {
+    "id": "2",
+    "title": "1984",
+    "author": "George Orwell",
+    "status": "read"
+  },
+  {
+    "id": "3",
+    "title": "Амадока",
+    "author": "Софія Андрухович",
+    "status": "want to read"
+  },
+  {
+    "id": "4",
+    "title": "Інтернат",
+    "author": "Сергій Жадан",
+    "status": "want to read"
+  },
+  {
+    "id": "5",
+    "title": "Танці з кістками",
+    "author": "Андрій Сем'янків",
+    "status": "read"
+  },
+  {
+    "id": "6",
+    "title": "Я бачу вас цікавить пітьма",
+    "author": "Ілларіон Павлюк",
+    "status": "read"
+  },
+  {
+    "id": "7",
+    "title": "Fifth Business",
+    "author": "Robertson Davies",
+    "status": "currently reading"
+  },
+  {
+    "id": "8",
+    "title": "The End of Everything",
+    "author": "M. John Harrison",
+    "status": "want to read",
+    "createdAt": "2026-11-16"
+  }
+]
